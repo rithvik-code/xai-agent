@@ -1,13 +1,14 @@
-# Step 3 - Download dataset and train first model
+# prepare_data.py - 79.5% version
 import pandas as pd
 import numpy as np
-from sklearn.ensemble import RandomForestClassifier
+from xgboost import XGBClassifier
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
+from imblearn.over_sampling import SMOTE
 import pickle
 import os
 
-# ── 1. Load the German Credit dataset directly from the web ──
+# ── 1. Download dataset ──
 print("Downloading dataset...")
 url = "https://archive.ics.uci.edu/ml/machine-learning-databases/statlog/german/german.data"
 
@@ -20,57 +21,64 @@ columns = [
 ]
 
 df = pd.read_csv(url, sep=" ", header=None, names=columns)
-print(f"Dataset loaded! Shape: {df.shape}")
-print(df.head())
+print(f"Dataset loaded! Shape: {df.shape} ✅")
 
 # ── 2. Prepare features ──
-# target: 1 = good credit, 2 = bad credit → convert to 0 and 1
 df["target"] = df["target"].map({1: 0, 2: 1})
-
-# Convert all categorical columns to numbers
 df = pd.get_dummies(df, drop_first=True)
 
+# ── 3. Split ──
 X = df.drop("target", axis=1)
 y = df["target"]
 
-print(f"\nFeatures shape: {X.shape}")
-print(f"Target distribution:\n{y.value_counts()}")
-
-# ── 3. Split into train and test ──
 X_train, X_test, y_train, y_test = train_test_split(
     X, y, test_size=0.2, random_state=42
 )
-print(f"\nTraining samples: {len(X_train)}")
-print(f"Test samples: {len(X_test)}")
+print(f"Training samples: {len(X_train)}")
+print(f"Test samples: {len(X_test)} ✅")
 
-# ── 4. Train a Random Forest model ──
-print("\nTraining Random Forest model...")
-model = RandomForestClassifier(n_estimators=100, random_state=42)
-model.fit(X_train, y_train)
+# ── 4. Balance with SMOTE ──
+print("\nBalancing training data...")
+smote = SMOTE(random_state=42)
+X_train_bal, y_train_bal = smote.fit_resample(X_train, y_train)
+print(f"Good credit: {(y_train_bal==0).sum()}")
+print(f"Bad credit:  {(y_train_bal==1).sum()} ✅")
 
-# ── 5. Check accuracy ──
+# ── 5. Train XGBoost ──
+print("\nTraining XGBoost model...")
+model = XGBClassifier(
+    n_estimators=500,
+    max_depth=6,
+    learning_rate=0.01,
+    subsample=0.8,
+    colsample_bytree=0.8,
+    scale_pos_weight=2,
+    random_state=42,
+    eval_metric='logloss'
+)
+model.fit(X_train_bal, y_train_bal)
+
+# ── 6. Check accuracy ──
 y_pred = model.predict(X_test)
 accuracy = accuracy_score(y_test, y_pred)
-print(f"Model accuracy: {accuracy:.2%}")
+print(f"\nModel accuracy: {accuracy:.2%}")
 
-# ── 6. Save everything ──
+# ── 7. Save everything ──
 os.makedirs("data", exist_ok=True)
 
-# Save model
 with open("data/credit_model.pkl", "wb") as f:
     pickle.dump(model, f)
-print("\nModel saved to data/credit_model.pkl ✅")
+print("Model saved ✅")
 
-# Save test data for later use by agents
 X_test.to_csv("data/X_test.csv", index=False)
 y_test.to_csv("data/y_test.csv", index=False)
 X_train.to_csv("data/X_train.csv", index=False)
-print("Test data saved to data/ folder ✅")
+y_train.to_csv("data/y_train.csv", index=False)
+print("Data saved ✅")
 
-# Save feature names (needed for SHAP later)
-feature_names = list(X.columns)
+feature_names = list(X_train.columns)
 with open("data/feature_names.pkl", "wb") as f:
     pickle.dump(feature_names, f)
 print("Feature names saved ✅")
 
-print("\n🎉 Step 3 complete! Your first model is trained and saved!")
+print("\n🎉 Complete! Your model is ready!")
