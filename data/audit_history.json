@@ -1,0 +1,12 @@
+[
+  {
+    "audit_number": 1,
+    "timestamp": "2026-06-15 02:05:30",
+    "task": "Full Responsible AI Audit",
+    "domain": "credit",
+    "responsible_ai_score": 86,
+    "grade": "B \u2705 GOOD",
+    "bias_score": 10,
+    "compliance_score": 82
+  }
+]

@@ -2,6 +2,7 @@
 import pandas as pd
 import numpy as np
 import pickle
+import os
 from fairlearn.metrics import (
     MetricFrame,
     demographic_parity_difference,
@@ -30,8 +31,17 @@ class BiasDetectorAgent:
         print("BiasDetectorAgent initialized ✅")
 
     def load_model(self, model_path, feature_names_path):
-        with open(model_path, "rb") as f:
-            self.model = pickle.load(f)
+        # Use fair model if it exists
+        fair_path = model_path.replace(
+            "credit_model.pkl", "credit_model_fair.pkl"
+        )
+        if os.path.exists(fair_path):
+            with open(fair_path, "rb") as f:
+                self.model = pickle.load(f)
+            print("Fair mitigated model loaded ✅")
+        else:
+            with open(model_path, "rb") as f:
+                self.model = pickle.load(f)
         with open(feature_names_path, "rb") as f:
             self.feature_names = pickle.load(f)
         print("Model loaded into BiasDetectorAgent ✅")

@@ -58,12 +58,31 @@ model = XGBClassifier(
 )
 model.fit(X_train_bal, y_train_bal)
 
-# ── 6. Check accuracy ──
+# ── 7. Apply bias mitigation ──
+from fairlearn.reductions import ExponentiatedGradient, DemographicParity
+print("\nApplying bias mitigation...")
+sensitive_features = X_train_bal['personal_status_sex_A93']
+mitigator = ExponentiatedGradient(
+    XGBClassifier(
+        n_estimators=500,
+        max_depth=6,
+        learning_rate=0.01,
+        subsample=0.8,
+        colsample_bytree=0.8,
+        scale_pos_weight=2,
+        random_state=42,
+        eval_metric='logloss'
+    ),
+    DemographicParity()
+)
+model.fit(X_train_bal, y_train_bal)
+
+# ── 7. Check accuracy ──
 y_pred = model.predict(X_test)
 accuracy = accuracy_score(y_test, y_pred)
 print(f"\nModel accuracy: {accuracy:.2%}")
 
-# ── 7. Save everything ──
+# ── 8. Save everything ──
 os.makedirs("data", exist_ok=True)
 
 with open("data/credit_model.pkl", "wb") as f:
@@ -82,3 +101,32 @@ with open("data/feature_names.pkl", "wb") as f:
 print("Feature names saved ✅")
 
 print("\n🎉 Complete! Your model is ready!")
+
+from fairlearn.reductions import ExponentiatedGradient, DemographicParity
+
+print("\nApplying bias mitigation...")
+# Get the sex column for mitigation
+sensitive_features = X_train_bal['personal_status_sex_A93']
+
+# Wrap model with fairness constraint
+mitigator = ExponentiatedGradient(
+    XGBClassifier(
+        n_estimators=500,
+        max_depth=6,
+        learning_rate=0.01,
+        subsample=0.8,
+        colsample_bytree=0.8,
+        scale_pos_weight=2,
+        random_state=42,
+        eval_metric='logloss'
+    ),
+    DemographicParity()
+)
+
+mitigator.fit(
+    X_train_bal,
+    y_train_bal,
+    sensitive_features=sensitive_features
+)
+model = mitigator
+print("Bias mitigation applied! ✅")

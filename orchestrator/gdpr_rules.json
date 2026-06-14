@@ -1,0 +1,67 @@
+{
+    "regulations": [{
+            "id": "GDPR_ART_22",
+            "name": "Article 22 - Right to Explanation",
+            "description": "People have the right to explanation for automated decisions",
+            "check": "has_explanation",
+            "requirement": "Model must provide per-prediction explanations",
+            "severity": "CRITICAL"
+        },
+        {
+            "id": "GDPR_ART_5",
+            "name": "Article 5 - Data Minimization",
+            "description": "Only collect data that is necessary",
+            "check": "data_minimization",
+            "requirement": "No unnecessary features in the model",
+            "severity": "HIGH"
+        },
+        {
+            "id": "GDPR_ART_13",
+            "name": "Article 13 - Transparency",
+            "description": "People must be informed about automated processing",
+            "check": "transparency",
+            "requirement": "Model logic must be explainable to users",
+            "severity": "HIGH"
+        },
+        {
+            "id": "GDPR_ART_25",
+            "name": "Article 25 - Privacy by Design",
+            "description": "Privacy must be built into the system from the start",
+            "check": "privacy_by_design",
+            "requirement": "No sensitive data used without necessity",
+            "severity": "HIGH"
+        },
+        {
+            "id": "GDPR_ART_35",
+            "name": "Article 35 - Impact Assessment",
+            "description": "High risk AI must have a Data Protection Impact Assessment",
+            "check": "impact_assessment",
+            "requirement": "DPIA must be conducted for high risk AI",
+            "severity": "CRITICAL"
+        }
+    ],
+    "eu_ai_act": {
+        "risk_tiers": {
+            "unacceptable": {
+                "domains": ["social_scoring", "manipulation", "biometric_surveillance"],
+                "action": "PROHIBITED - cannot be deployed",
+                "color": "BLACK"
+            },
+            "high": {
+                "domains": ["credit", "employment", "education", "healthcare", "law_enforcement"],
+                "action": "Requires conformity assessment, human oversight, transparency",
+                "color": "RED"
+            },
+            "limited": {
+                "domains": ["chatbot", "recommendation", "content_moderation"],
+                "action": "Requires transparency obligations",
+                "color": "YELLOW"
+            },
+            "minimal": {
+                "domains": ["spam_filter", "game_ai", "basic_automation"],
+                "action": "No specific obligations",
+                "color": "GREEN"
+            }
+        }
+    }
+}

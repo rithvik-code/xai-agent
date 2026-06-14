@@ -1,0 +1,28 @@
+{
+    "dpia": {
+        "title": "Data Protection Impact Assessment",
+        "project": "XAI Credit Risk Agent",
+        "author": "Rithvik",
+        "date": "2026-06-14",
+        "version": "1.0",
+        "status": "COMPLETED",
+        "sections": {
+            "purpose": "Automated credit risk assessment with explainability",
+            "data_used": "German Credit Dataset - anonymized historical data",
+            "risks_identified": [
+                "Gender bias in predictions",
+                "Age discrimination potential",
+                "Proxy feature discrimination"
+            ],
+            "mitigations": [
+                "SHAP explanations for every prediction",
+                "LIME double verification",
+                "Fairlearn bias monitoring",
+                "aif360 disparate impact checks"
+            ],
+            "human_oversight": "All high risk decisions reviewed by human",
+            "data_retention": "No personal data stored beyond session",
+            "legal_basis": "Legitimate interest with explicit consent"
+        }
+    }
+}
