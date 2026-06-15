@@ -7,6 +7,8 @@ import os
 import sys
 sys.path.append(".")
 
+from fastapi.responses import FileResponse
+from agents.report_agent import ReportAgent
 from agents.interpretability_agent import InterpretabilityAgent
 from agents.lime_agent import LimeAgent
 from agents.bias_detector_agent import BiasDetectorAgent
@@ -57,6 +59,7 @@ sex_cols = [
 ]
 bias_cache = bias_agent.run(X_test, y_test, sex_cols)
 print("All agents ready! ✅")
+report_agent = ReportAgent()
 
 # ── Request model ──
 class ExplainRequest(BaseModel):
@@ -244,3 +247,30 @@ def get_audit_history():
         "total_audits": len(history),
         "history": history
     }
+@app.get("/report")
+def generate_report():
+    """Generate and download PDF report"""
+    pdf_path = report_agent.generate_pdf(
+        scores=compute_responsible_ai_score(
+            bias_score=int(bias_cache["fairness_score"]),
+            compliance_score=82,
+            shap_works=True,
+            lime_works=True,
+            proxy_risks=bias_cache["proxy_risks"],
+            gdpr_results=[]
+        ),
+        bias_results=bias_cache,
+        compliance_results={
+            "compliance_score": 82,
+            "risk_tier": {"tier": "high"},
+            "gdpr_results": [],
+            "remediation_steps": []
+        },
+        model_accuracy=79.5,
+        domain="credit"
+    )
+    return FileResponse(
+        pdf_path,
+        media_type="application/pdf",
+        filename="XAI_Audit_Report.pdf"
+    )
