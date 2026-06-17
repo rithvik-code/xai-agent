@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import sys
 import os
+import json
 sys.path.append(".")
 
 from agents.interpretability_agent import InterpretabilityAgent
@@ -29,9 +30,7 @@ class OrchestratorAgent:
 
         # LIME Agent
         self.lime_agent = LimeAgent()
-        self.lime_agent.load_model(
-            model_path, feature_names_path, X_train
-        )
+        self.lime_agent.load_model(model_path, feature_names_path, X_train)
 
         # Bias Agent
         self.bias_agent = BiasDetectorAgent()
@@ -98,9 +97,7 @@ class OrchestratorAgent:
         print(f"\n{'='*60}")
         print("RUNNING AGENT 1: Interpretability (SHAP)")
         print(f"{'='*60}")
-        shap_results = self.shap_agent.run(
-            X_test, num_samples=num_samples
-        )
+        shap_results = self.shap_agent.run(X_test, num_samples=num_samples)
         report["shap_results"] = shap_results
         report["agents_run"].append("SHAP ✅")
         shap_works = True
@@ -110,9 +107,7 @@ class OrchestratorAgent:
         print(f"\n{'='*60}")
         print("RUNNING AGENT 2: Interpretability (LIME)")
         print(f"{'='*60}")
-        lime_results = self.lime_agent.run(
-            X_test, num_samples=num_samples
-        )
+        lime_results = self.lime_agent.run(X_test, num_samples=num_samples)
         report["lime_results"] = lime_results
         report["agents_run"].append("LIME ✅")
         lime_works = True
@@ -122,13 +117,8 @@ class OrchestratorAgent:
         print(f"\n{'='*60}")
         print("RUNNING AGENT 3: Bias Detector")
         print(f"{'='*60}")
-        protected_cols = [
-            col for col in X_test.columns
-            if 'personal_status_sex' in col
-        ]
-        bias_results = self.bias_agent.run(
-            X_test, y_test, protected_cols
-        )
+        protected_cols = [col for col in X_test.columns if 'personal_status_sex' in col]
+        bias_results = self.bias_agent.run(X_test, y_test, protected_cols)
         report["bias_results"] = bias_results
         report["agents_run"].append("BiasDetector ✅")
         bias_score = bias_results["fairness_score"]
@@ -189,9 +179,7 @@ class OrchestratorAgent:
             print(f"  Sample {i+1}: SHAP={shap_pred} LIME={lime_pred} → {agree}")
 
         print(f"\nTOP REMEDIATION STEPS:")
-        for i, step in enumerate(
-            compliance_results["remediation_steps"][:3]
-        ):
+        for i, step in enumerate(compliance_results["remediation_steps"][:3]):
             print(f"  {i+1}. {step['priority']}: {step['action']}")
         print(f"{'='*60}")
 
@@ -212,10 +200,10 @@ if __name__ == "__main__":
         model_path="data/credit_model.pkl",
         feature_names_path="data/feature_names.pkl",
         X_train=X_train,
-        rules_path="orchestrator/gdpr_rules.json"
+        rules_path="orchestrator/gdpr_rules.json"   # ✅ matches method signature now
     )
 
-    # Run the full audit with one single call!
+    # Run the full audit
     report = orchestrator.run(
         task="Audit this credit model for GDPR compliance and gender bias",
         X_test=X_test,
@@ -227,5 +215,5 @@ if __name__ == "__main__":
     print("\n" + "="*60)
     print("🎉 Phase 3 Complete!")
     print(f"Responsible AI Score: {report['scores']['responsible_ai_score']}/100")
-    print(f"Grade: {report['scores']['grade']}")
+    print(f"Grade:{report['scores']['grade']}")
     print("="*60)
