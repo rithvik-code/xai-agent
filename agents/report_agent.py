@@ -236,21 +236,65 @@ class ReportAgent:
         # Key findings table
         story.append(Paragraph("KEY FINDINGS", self.heading_style))
 
-        findings = [
-            ["Finding", "Status", "Priority"],
-            ["SHAP + LIME explanations available",
-             "COMPLIANT", "—"],
-            ["Gender bias detected (sex_A93, sex_A94)",
-             "FAIL", "CRITICAL"],
-            ["GDPR Article 22 (Right to Explanation)",
-             "COMPLIANT", "—"],
-            ["GDPR Article 25 (Privacy by Design)",
-             "AT RISK", "HIGH"],
-            ["EU AI Act Risk Classification",
-             "HIGH RISK", "CRITICAL"],
-            ["DPIA completed and documented",
-             "COMPLIANT", "—"],
-        ]
+        findings = [["Finding", "Status", "Priority"]]
+
+        # SHAP + LIME row (always present since both agents always run)
+        findings.append([
+            "SHAP + LIME explanations available",
+            "COMPLIANT", "—"
+        ])
+
+        # Dynamic bias rows - one per protected attribute that FAILED or WARNED
+        for r in bias_results["bias_results"]:
+            dpd_fail = "FAIL" in r["dpd_severity"]
+            eod_fail = "FAIL" in r["eod_severity"]
+            dpd_warn = "WARN" in r["dpd_severity"]
+            eod_warn = "WARN" in r["eod_severity"]
+            attr_clean = r["attribute"].replace(
+                "personal_status_sex_", "sex_"
+            )
+            if dpd_fail or eod_fail:
+                findings.append([
+                    f"Bias detected ({attr_clean})",
+                    "FAIL", "CRITICAL"
+                ])
+            elif dpd_warn or eod_warn:
+                findings.append([
+                    f"Borderline bias ({attr_clean})",
+                    "WARN", "MEDIUM"
+                ])
+
+        # If no bias issues found at all, say so explicitly
+        has_bias_issue = any(
+            "FAIL" in r["dpd_severity"] or "FAIL" in r["eod_severity"]
+            or "WARN" in r["dpd_severity"] or "WARN" in r["eod_severity"]
+            for r in bias_results["bias_results"]
+        )
+        if not has_bias_issue:
+            findings.append([
+                "No significant bias detected",
+                "COMPLIANT", "—"
+            ])
+
+        # Dynamic GDPR rows - pulled straight from real compliance results
+        for r in compliance_results["gdpr_results"]:
+            status_word = r["status"].split()[0]
+            priority = "—" if status_word == "COMPLIANT" else (
+                "CRITICAL" if status_word == "NON_COMPLIANT" else "HIGH"
+            )
+            findings.append([
+                r["rule_name"].split(" - ")[0],
+                status_word,
+                priority
+            ])
+
+        # EU AI Act risk tier - dynamic
+        risk_tier = compliance_results["risk_tier"]["tier"].upper()
+        findings.append([
+            "EU AI Act Risk Classification",
+            f"{risk_tier} RISK",
+            "CRITICAL" if risk_tier == "HIGH" else "MEDIUM"
+        ])
 
         findings_table = Table(
             findings,
@@ -275,8 +319,12 @@ class ReportAgent:
         status_colors = {
             "COMPLIANT": self.green,
             "FAIL": self.red,
-            "AT RISK": self.amber,
-            "HIGH RISK": self.red
+            "WARN": self.amber,
+            "AT_RISK": self.amber,
+            "NON_COMPLIANT": self.red,
+            "HIGH RISK": self.red,
+            "LIMITED RISK": self.amber,
+            "MINIMAL RISK": self.green
         }
         for i, row in enumerate(findings[1:], 1):
             color = status_colors.get(row[1], self.muted)

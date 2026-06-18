@@ -12,6 +12,7 @@ sys.path.append(BASE_DIR)
 from orchestrator.orchestrator_agent import OrchestratorAgent
 from orchestrator.responsible_ai_score import compute_responsible_ai_score
 from agents.report_agent import ReportAgent
+from agents.explanation_agent import ExplanationAgent
 
 # Page config
 st.set_page_config(
@@ -66,13 +67,11 @@ if "audit_results" not in st.session_state:
     st.session_state.audit_results = None
 
 # Load data
-@st.cache_resource
 def load_data():
     X_test = pd.read_csv("data/X_test.csv")
     y_test = pd.read_csv("data/y_test.csv").squeeze()
     return X_test, y_test
 
-@st.cache_resource
 def load_orchestrator():
     X_train = pd.read_csv("data/X_train.csv")
     orch = OrchestratorAgent()
@@ -124,6 +123,7 @@ if run_audit:
             }
         }
 
+
         st.session_state.audit_results = {
             "results": results,
             "scores": scores
@@ -166,8 +166,8 @@ if st.session_state.audit_results:
     st.markdown("---")
 
     # Tabs for details
-    tab1, tab2, tab3 = st.tabs(
-        ["🎯 Bias Analysis", "📜 Compliance", "📄 Download Report"]
+    tab1, tab2, tab3, tab4 = st.tabs(
+        ["🎯 Bias Analysis", "📜 Compliance", "📝 Plain-English Summary", "📄 Download Report"]
     )
 
     with tab1:
@@ -215,6 +215,27 @@ if st.session_state.audit_results:
         )
 
     with tab3:
+        st.subheader("Plain-English Summary")
+        st.caption("Powered by Llama 3.3 70B via Groq")
+        if st.button("🧠 Generate Explanation"):
+            with st.spinner("Translating technical results into plain English..."):
+                try:
+                    explainer = ExplanationAgent()
+                    explanation = explainer.explain(
+                        scores=scores,
+                        bias_results=results["bias_results"],
+                        compliance_results=results["compliance_results"],
+                        domain=domain
+                    )
+                    st.session_state.explanation_text = explanation
+                except Exception as e:
+                    st.error(f"Couldn't generate explanation: {e}")
+
+        if "explanation_text" in st.session_state:
+            st.markdown("---")
+            st.markdown(st.session_state.explanation_text)
+
+    with tab4:
         st.subheader("Download Full PDF Report")
         if st.button("📄 Generate PDF Report"):
             with st.spinner("Generating PDF..."):
