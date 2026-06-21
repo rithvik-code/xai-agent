@@ -1,0 +1,8 @@
+xai_env/
+.env
+__pycache__/
+*.pyc
+.git/
+.gitignore
+reports/*.pdf
+reports/html/*.html
