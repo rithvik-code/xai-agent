@@ -98,31 +98,26 @@ class ReportAgent:
 
     def _make_cover_page(self, story, scores, domain, model_accuracy):
         """Build cover page"""
-        # Dark background cover
         story.append(Spacer(1, 0.5 * inch))
 
-        # Title
         story.append(Paragraph(
             "RESPONSIBLE AI AUDIT REPORT",
             self.title_style
         ))
         story.append(Spacer(1, 0.2 * inch))
 
-        # Subtitle
         story.append(Paragraph(
-            f"XAI Agent Analysis — {domain.upper()} DOMAIN",
+            f"XAI Agent Analysis - {domain.upper()} DOMAIN",
             self.subtitle_style
         ))
         story.append(Spacer(1, 0.1 * inch))
 
-        # Date
         story.append(Paragraph(
             f"Generated: {datetime.now().strftime('%B %d, %Y at %H:%M')}",
             self.subtitle_style
         ))
         story.append(Spacer(1, 0.4 * inch))
 
-        # Score badge table
         total = scores["total"]["score"]
         grade = scores["total"]["grade"]
         exp = scores["explainability"]["score"]
@@ -133,17 +128,12 @@ class ReportAgent:
             self.amber if total >= 60 else self.red
         )
 
-        # Main score card
         score_data = [
             ["RESPONSIBLE AI SCORE", "", ""],
             [str(total) + " / 100", "", grade],
             ["", "", ""],
             ["Explainability", "Fairness", "Compliance"],
-            [
-                str(exp) + "/30",
-                str(fair) + "/40",
-                str(comp) + "/30"
-            ]
+            [str(exp) + "/30", str(fair) + "/40", str(comp) + "/30"]
         ]
 
         score_table = Table(
@@ -171,12 +161,10 @@ class ReportAgent:
             ("ROWHEIGHT", (0, 3), (-1, 3), 25),
             ("ROWHEIGHT", (0, 4), (-1, 4), 30),
             ("GRID", (0, 0), (-1, -1), 1, white),
-            ("ROUNDEDCORNERS", [5, 5, 5, 5]),
         ]))
         story.append(score_table)
         story.append(Spacer(1, 0.3 * inch))
 
-        # Model info table
         info_data = [
             ["Model Type", "Domain", "Accuracy", "Test Samples"],
             ["XGBoost", domain.upper(), f"{model_accuracy:.1f}%", "200"]
@@ -201,7 +189,7 @@ class ReportAgent:
         story.append(PageBreak())
 
     def _make_executive_summary(self, story, scores,
-                                 bias_results, compliance_results):
+                                bias_results, compliance_results):
         """Executive summary page"""
         story.append(Paragraph(
             "EXECUTIVE SUMMARY", self.heading_style
@@ -214,37 +202,34 @@ class ReportAgent:
         comp_score = compliance_results["compliance_score"]
         risk_tier = compliance_results["risk_tier"]["tier"].upper()
 
-        summary_text = f"""
-        This Responsible AI Audit was conducted using the XAI Agent system,
-        which combines SHAP explainability, LIME verification, fairness
-        analysis using Fairlearn and IBM AIF360, and GDPR/EU AI Act
-        compliance checking.
-        <br/><br/>
-        The model achieved an overall <b>Responsible AI Score of
-        {total}/100</b> with a status of <b>{status}</b>.
-        The EU AI Act classifies this system as <b>{risk_tier} RISK</b>,
-        requiring conformity assessment and human oversight before deployment.
-        <br/><br/>
-        Key findings include a fairness score of <b>{bias_score}/100</b>
-        indicating gender-based bias patterns in predictions, and a
-        compliance score of <b>{comp_score}/100</b> with most GDPR
-        articles satisfied due to the explainability layer.
-        """
+        summary_text = (
+            "This Responsible AI Audit was conducted using the XAI Agent "
+            "system, which combines SHAP explainability, LIME verification, "
+            "fairness analysis using Fairlearn and IBM AIF360, and GDPR/EU "
+            "AI Act compliance checking.<br/><br/>"
+            f"The model achieved an overall <b>Responsible AI Score of "
+            f"{total}/100</b> with a status of <b>{status}</b>. "
+            f"The EU AI Act classifies this system as <b>{risk_tier} RISK"
+            f"</b>, requiring conformity assessment and human oversight "
+            f"before deployment.<br/><br/>"
+            f"Key findings include a fairness score of "
+            f"<b>{bias_score}/100</b> indicating gender-based bias patterns "
+            f"in predictions, and a compliance score of "
+            f"<b>{comp_score}/100</b> with most GDPR articles satisfied "
+            f"due to the explainability layer."
+        )
         story.append(Paragraph(summary_text, self.body_style))
         story.append(Spacer(1, 0.2 * inch))
 
-        # Key findings table
         story.append(Paragraph("KEY FINDINGS", self.heading_style))
 
         findings = [["Finding", "Status", "Priority"]]
 
-        # SHAP + LIME row (always present since both agents always run)
         findings.append([
             "SHAP + LIME explanations available",
-            "COMPLIANT", "—"
+            "COMPLIANT", "-"
         ])
 
-        # Dynamic bias rows - one per protected attribute that FAILED or WARNED
         for r in bias_results["bias_results"]:
             dpd_fail = "FAIL" in r["dpd_severity"]
             eod_fail = "FAIL" in r["eod_severity"]
@@ -264,7 +249,6 @@ class ReportAgent:
                     "WARN", "MEDIUM"
                 ])
 
-        # If no bias issues found at all, say so explicitly
         has_bias_issue = any(
             "FAIL" in r["dpd_severity"] or "FAIL" in r["eod_severity"]
             or "WARN" in r["dpd_severity"] or "WARN" in r["eod_severity"]
@@ -273,13 +257,12 @@ class ReportAgent:
         if not has_bias_issue:
             findings.append([
                 "No significant bias detected",
-                "COMPLIANT", "—"
+                "COMPLIANT", "-"
             ])
 
-        # Dynamic GDPR rows - pulled straight from real compliance results
         for r in compliance_results["gdpr_results"]:
             status_word = r["status"].split()[0]
-            priority = "—" if status_word == "COMPLIANT" else (
+            priority = "-" if status_word == "COMPLIANT" else (
                 "CRITICAL" if status_word == "NON_COMPLIANT" else "HIGH"
             )
             findings.append([
@@ -288,7 +271,6 @@ class ReportAgent:
                 priority
             ])
 
-        # EU AI Act risk tier - dynamic
         risk_tier = compliance_results["risk_tier"]["tier"].upper()
         findings.append([
             "EU AI Act Risk Classification",
@@ -315,7 +297,6 @@ class ReportAgent:
              [white, self.light_bg]),
         ]
 
-        # Color status cells
         status_colors = {
             "COMPLIANT": self.green,
             "FAIL": self.red,
@@ -329,11 +310,33 @@ class ReportAgent:
         for i, row in enumerate(findings[1:], 1):
             color = status_colors.get(row[1], self.muted)
             style.append(("TEXTCOLOR", (1, i), (1, i), color))
-            style.append(("FONTNAME", (1, i), (1, i),
-                          "Helvetica-Bold"))
+            style.append(("FONTNAME", (1, i), (1, i), "Helvetica-Bold"))
 
         findings_table.setStyle(TableStyle(style))
         story.append(findings_table)
+        story.append(PageBreak())
+
+    def _make_explanation_section(self, story, explanation):
+        """Plain-English AI explanation section"""
+        story.append(Paragraph(
+            "PLAIN-ENGLISH SUMMARY", self.heading_style
+        ))
+        story.append(Paragraph(
+            "The following explanation was generated by an AI model "
+            "to help non-technical stakeholders understand this audit:",
+            self.body_style
+        ))
+        story.append(Spacer(1, 0.1 * inch))
+
+        clean_explanation = explanation.strip()
+
+        for para in clean_explanation.split('\n\n'):
+            if para.strip():
+                story.append(Paragraph(
+                    para.strip(), self.body_style
+                ))
+                story.append(Spacer(1, 0.1 * inch))
+
         story.append(PageBreak())
 
     def _make_bias_section(self, story, bias_results):
@@ -346,9 +349,8 @@ class ReportAgent:
         ))
         story.append(Spacer(1, 0.1 * inch))
 
-        # Bias metrics table
         bias_data = [["Protected Attribute", "DPD", "DPD Status",
-                       "EOD", "EOD Status"]]
+                      "EOD", "EOD Status"]]
 
         for r in bias_results["bias_results"]:
             bias_data.append([
@@ -387,7 +389,6 @@ class ReportAgent:
         story.append(bias_table)
         story.append(Spacer(1, 0.2 * inch))
 
-        # Proxy features
         if bias_results.get("proxy_risks"):
             story.append(Paragraph(
                 "PROXY FEATURES DETECTED", self.heading_style
@@ -414,8 +415,7 @@ class ReportAgent:
                 ("ALIGN", (0, 0), (-1, -1), "CENTER"),
                 ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
                 ("ROWHEIGHT", (0, 0), (-1, -1), 20),
-                ("GRID", (0, 0), (-1, -1), 0.5,
-                 HexColor("#dee2e6")),
+                ("GRID", (0, 0), (-1, -1), 0.5, HexColor("#dee2e6")),
                 ("ROWBACKGROUNDS", (0, 1), (-1, -1),
                  [white, self.light_bg]),
             ]))
@@ -436,9 +436,7 @@ class ReportAgent:
         ))
         story.append(Spacer(1, 0.1 * inch))
 
-        # GDPR table
-        gdpr_data = [["Regulation", "Severity",
-                       "Status", "Finding"]]
+        gdpr_data = [["Regulation", "Severity", "Status", "Finding"]]
         for r in compliance_results["gdpr_results"]:
             gdpr_data.append([
                 r["rule_name"].split(" - ")[0],
@@ -475,7 +473,7 @@ class ReportAgent:
         story.append(PageBreak())
 
     def _make_remediation_section(self, story, compliance_results,
-                                   bias_results):
+                                  bias_results):
         """Remediation roadmap"""
         story.append(Paragraph(
             "REMEDIATION ROADMAP", self.heading_style
@@ -486,31 +484,30 @@ class ReportAgent:
         ))
         story.append(Spacer(1, 0.1 * inch))
 
-        steps = compliance_results.get("remediation_steps", [])
+        steps = list(compliance_results.get("remediation_steps", []))
 
-        # Add bias remediation
         steps.append({
-            "priority": "🔴 CRITICAL",
+            "priority": "CRITICAL",
             "action": "Implement bias mitigation for sex_A93 and sex_A94",
             "regulation": "FAIRNESS"
         })
         steps.append({
-            "priority": "🟡 HIGH",
+            "priority": "HIGH",
             "action": "Monitor proxy features: age, dependents correlation",
             "regulation": "FAIRNESS"
         })
         steps.append({
-            "priority": "🟢 MEDIUM",
+            "priority": "MEDIUM",
             "action": "Add human review workflow for HIGH RISK decisions",
             "regulation": "EU_AI_ACT"
         })
 
         rem_data = [["#", "Priority", "Action", "Regulation"]]
         for i, step in enumerate(steps[:6], 1):
+            priority = step["priority"].replace("CRITICAL", "CRITICAL")
             rem_data.append([
                 str(i),
-                step["priority"].replace("🔴 ", "").replace(
-                    "🟡 ", "").replace("🟢 ", ""),
+                priority,
                 step["action"][:55] + "..." if len(
                     step["action"]) > 55 else step["action"],
                 step["regulation"]
@@ -547,7 +544,6 @@ class ReportAgent:
         story.append(rem_table)
         story.append(Spacer(1, 0.3 * inch))
 
-        # Footer note
         story.append(Paragraph(
             "This report was generated automatically by Rithvik's "
             "XAI Agent System. All findings should be reviewed by "
@@ -557,7 +553,7 @@ class ReportAgent:
 
     def generate_pdf(self, scores, bias_results,
                      compliance_results, model_accuracy=79.5,
-                     domain="credit"):
+                     domain="credit", explanation=None):
         """Generate the full PDF report"""
         print("\n📄 GENERATING PDF REPORT...")
 
@@ -577,24 +573,24 @@ class ReportAgent:
 
         story = []
 
-        # Build all sections
         self._make_cover_page(story, scores, domain, model_accuracy)
         self._make_executive_summary(
             story, scores, bias_results, compliance_results
         )
+        if explanation:
+            self._make_explanation_section(story, explanation)
         self._make_bias_section(story, bias_results)
         self._make_compliance_section(story, compliance_results)
         self._make_remediation_section(
             story, compliance_results, bias_results
         )
 
-        # Build PDF
         doc.build(story)
         print(f"PDF saved: {filename} ✅")
         return filename
 
 
-# ── Run it! ──
+# Run it!
 if __name__ == "__main__":
     from orchestrator.compliance_agent import ComplianceAgent
     from agents.bias_detector_agent import BiasDetectorAgent
@@ -606,7 +602,6 @@ if __name__ == "__main__":
     X_test = pd.read_csv("data/X_test.csv")
     y_test = pd.read_csv("data/y_test.csv").squeeze()
 
-    # Run agents
     bias_agent = BiasDetectorAgent()
     bias_agent.load_model("data/credit_model.pkl",
                           "data/feature_names.pkl")
@@ -635,7 +630,6 @@ if __name__ == "__main__":
         gdpr_results=[]
     )
 
-    # Generate PDF
     report_agent = ReportAgent()
     pdf_path = report_agent.generate_pdf(
         scores=scores,
