@@ -22,3 +22,7 @@ rad.json
 #Test results file
 TestResults.xml
 .env
+.env
+__pycache__/
+*.pyc
+xai_env/

@@ -1,5 +1,6 @@
 ﻿---
 title: XAI Agent
+emoji: ??
 colorFrom: purple
 colorTo: blue
 sdk: docker
@@ -9,3 +10,4 @@ pinned: false
 
 # XAI Agent
 Responsible AI Audit Platform built by Rithvik
+

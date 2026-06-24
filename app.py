@@ -1,3 +1,13 @@
+import os
+from dotenv import load_dotenv
+
+load_dotenv()  # explicitly load .env
+
+print("Groq key:", os.getenv("GROQ_API_KEY"))
+
+
+
+
 # Phase 5 - Streamlit Frontend
 import streamlit as st
 import pandas as pd
