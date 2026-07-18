@@ -1,4 +1,7 @@
-# Phase 5 - Streamlit Frontend with Chatbot + CSV Upload
+
+app_py_code = '''# XAI Agent — Responsible AI Audit Platform
+# Production-ready Streamlit app with Chatbot, CSV Scanner, and Document Analyzer
+
 import streamlit as st
 import pandas as pd
 import sys
@@ -7,24 +10,29 @@ import json
 import tempfile
 from dotenv import load_dotenv
 
-# Lock working directory
+# ── Lock working directory ──────────────────────────────────────
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 os.chdir(BASE_DIR)
 sys.path.append(BASE_DIR)
 load_dotenv()
 
-from orchestrator.orchestrator_agent import OrchestratorAgent
-from agents.report_agent import ReportAgent
-from agents.explanation_agent import ExplanationAgent
+# ── Imports ─────────────────────────────────────────────────────
+try:
+    from orchestrator.orchestrator_agent import OrchestratorAgent
+    from agents.report_agent import ReportAgent
+    from agents.explanation_agent import ExplanationAgent
+except ImportError as e:
+    st.error(f"Backend import failed: {e}")
+    st.stop()
 
-# Page config
+# ── Page Config ─────────────────────────────────────────────────
 st.set_page_config(
     page_title="XAI Agent - Responsible AI Audit",
     page_icon="🤖",
     layout="wide"
 )
 
-# Custom CSS
+# ── Custom CSS ──────────────────────────────────────────────────
 st.markdown("""
 <style>
     .stApp { background-color: #0f0f1a; }
@@ -48,12 +56,12 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Title
+# ── Title ───────────────────────────────────────────────────────
 st.title("🤖 XAI Agent — Responsible AI Audit Platform")
 st.markdown("### Built by Rithvik | SHAP + LIME + Fairness + GDPR Compliance")
 st.markdown("---")
 
-# Sidebar
+# ── Sidebar ─────────────────────────────────────────────────────
 with st.sidebar:
     st.header("⚙️ Configuration")
     domain = st.selectbox(
@@ -73,23 +81,32 @@ with st.sidebar:
     st.markdown("2. Upload your own CSV for bias checking")
     st.markdown("3. Ask the chatbot anything about your results")
 
-# Initialize session state
-if "audit_results" not in st.session_state:
-    st.session_state.audit_results = None
-if "chat_history" not in st.session_state:
-    st.session_state.chat_history = []
-if "csv_bias_results" not in st.session_state:
-    st.session_state.csv_bias_results = None
-if "csv_summary" not in st.session_state:
-    st.session_state.csv_summary = None
+# ── Session State ───────────────────────────────────────────────
+def init_session():
+    defaults = {
+        "audit_results": None,
+        "chat_history": [],
+        "csv_bias_results": None,
+        "csv_summary": None,
+        "explanation_text": None,
+        "doc_text": None,
+        "doc_name": None,
+        "doc_analysis": None,
+        "doc_analysis_type": None,
+        "doc_context": None,
+    }
+    for key, val in defaults.items():
+        if key not in st.session_state:
+            st.session_state[key] = val
 
+init_session()
 
-def load_data():
-    X_test = pd.read_csv("data/X_test.csv")
-    y_test = pd.read_csv("data/y_test.csv").squeeze()
-    return X_test, y_test
+# ── Data Loaders ────────────────────────────────────────────────
+@st.cache_data
+def load_test_data():
+    return pd.read_csv("data/X_test.csv"), pd.read_csv("data/y_test.csv").squeeze()
 
-
+@st.cache_resource
 def load_orchestrator():
     X_train = pd.read_csv("data/X_train.csv")
     orch = OrchestratorAgent()
@@ -101,7 +118,46 @@ def load_orchestrator():
     )
     return orch
 
+# ── LLM Caller ──────────────────────────────────────────────────
+@st.cache_resource
+def get_llm_client():
+    hf_token = os.getenv("HF_TOKEN")
+    groq_key = os.getenv("GROQ_API_KEY")
+    
+    if groq_key:
+        from groq import Groq
+        return {"type": "groq", "client": Groq(api_key=groq_key)}
+    elif hf_token:
+        from openai import OpenAI
+        return {
+            "type": "hf",
+            "client": OpenAI(base_url="https://router.huggingface.co/v1", api_key=hf_token)
+        }
+    return None
 
+
+def call_llm(messages, max_tokens=500):
+    client_info = get_llm_client()
+    if not client_info:
+        raise ValueError("No API key found — add HF_TOKEN or GROQ_API_KEY to Secrets")
+    
+    if client_info["type"] == "groq":
+        response = client_info["client"].chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=messages,
+            max_tokens=max_tokens,
+        )
+    else:
+        response = client_info["client"].chat.completions.create(
+            model="meta-llama/Llama-3.1-8B-Instruct",
+            messages=messages,
+            max_tokens=max_tokens,
+            temperature=0.7,
+        )
+    return response.choices[0].message.content.strip()
+
+
+# ── Chat Context Builder ────────────────────────────────────────
 def build_chat_context():
     ctx = (
         "You are an expert Responsible AI advisor embedded in the XAI Agent platform. "
@@ -109,20 +165,20 @@ def build_chat_context():
         "SHAP and LIME explanations, and how to make AI systems more ethical and fair. "
         "Be conversational, direct, and explain things in plain English without jargon. "
         "If a user asks what to do next, give them a concrete actionable recommendation. "
-        "If a user is confused, reassure them and break things down step by step. "
+        "If a user is confused, reassure them and break things down step by step."
     )
     if st.session_state.audit_results:
         scores = st.session_state.audit_results["scores"]
         results = st.session_state.audit_results["results"]
         ctx += (
-            f"\n\nCURRENT AUDIT CONTEXT: The user just ran a full Responsible AI audit. "
+            f"\\n\\nCURRENT AUDIT CONTEXT: The user just ran a full Responsible AI audit. "
             f"Overall Score: {scores['total']['score']}/100, "
             f"Grade: {scores['total']['grade']}, "
             f"Status: {scores['total']['status']}. "
             f"Explainability: {scores['explainability']['score']}/30. "
             f"Fairness: {scores['fairness']['score']}/40. "
             f"Compliance: {scores['compliance']['score']}/30. "
-            f"Domain: credit. "
+            f"Domain: {domain}. "
             f"EU AI Act Risk Tier: {results['compliance_results']['risk_tier']['tier'].upper()}. "
         )
         bias_summary = ", ".join([
@@ -134,45 +190,22 @@ def build_chat_context():
     if st.session_state.csv_summary:
         s = st.session_state.csv_summary
         ctx += (
-            f"\n\nUSER CSV CONTEXT: The user uploaded a dataset with {s['rows']} rows "
+            f"\\n\\nUSER CSV CONTEXT: The user uploaded a dataset with {s['rows']} rows "
             f"and {s['cols']} columns. Target column: '{s['target']}'. "
             f"Protected columns checked: {', '.join(s['protected'])}. "
             f"Bias results: {json.dumps(s['results'])}. "
         )
+    
+    if st.session_state.doc_context:
+        ctx += f"\\n\\nDOCUMENT CONTEXT: {st.session_state.doc_context}"
+    
     return ctx
 
 
-def call_llm(messages):
-    hf_token = os.getenv("HF_TOKEN")
-    groq_key = os.getenv("GROQ_API_KEY")
+# ════════════════════════════════════════════════════════════════
+# SECTION 1: MAIN AUDIT
+# ════════════════════════════════════════════════════════════════
 
-    if hf_token:
-        from openai import OpenAI
-        client = OpenAI(
-            base_url="https://router.huggingface.co/v1",
-            api_key=hf_token
-        )
-        response = client.chat.completions.create(
-            model="meta-llama/Llama-3.1-8B-Instruct",
-            messages=messages,
-            max_tokens=500,
-            temperature=0.7,
-        )
-    elif groq_key:
-        from groq import Groq
-        client = Groq(api_key=groq_key)
-        response = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
-            messages=messages,
-            max_tokens=500,
-        )
-    else:
-        raise ValueError("No API key found — add HF_TOKEN or GROQ_API_KEY to your .env file")
-
-    return response.choices[0].message.content.strip()
-
-
-# ==================== MAIN AUDIT SECTION ====================
 col1, col2, col3 = st.columns([1, 1, 1])
 with col2:
     run_audit = st.button(
@@ -181,35 +214,38 @@ with col2:
 
 if run_audit:
     with st.spinner("Running Responsible AI Audit... This may take a minute..."):
-        X_test, y_test = load_data()
-        orchestrator = load_orchestrator()
-        results = orchestrator.run(
-            task="credit_audit",
-            X_test=X_test,
-            y_test=y_test,
-            domain=domain,
-            num_samples=num_samples
-        )
-        raw_scores = results["scores"]
-        total_score = raw_scores["responsible_ai_score"]
-        status = (
-            "EXCELLENT" if total_score >= 90
-            else "GOOD" if total_score >= 75
-            else "NEEDS IMPROVEMENT" if total_score >= 60
-            else "POOR"
-        )
-        scores = {
-            "explainability": {"score": raw_scores["explainability"]},
-            "fairness": {"score": raw_scores["fairness"]},
-            "compliance": {"score": raw_scores["compliance"]},
-            "total": {
-                "score": total_score,
-                "grade": raw_scores["grade"],
-                "status": status
+        try:
+            X_test, y_test = load_test_data()
+            orchestrator = load_orchestrator()
+            results = orchestrator.run(
+                task="credit_audit",
+                X_test=X_test,
+                y_test=y_test,
+                domain=domain,
+                num_samples=num_samples
+            )
+            raw_scores = results["scores"]
+            total_score = raw_scores["responsible_ai_score"]
+            status = (
+                "EXCELLENT" if total_score >= 90
+                else "GOOD" if total_score >= 75
+                else "NEEDS IMPROVEMENT" if total_score >= 60
+                else "POOR"
+            )
+            scores = {
+                "explainability": {"score": raw_scores["explainability"]},
+                "fairness": {"score": raw_scores["fairness"]},
+                "compliance": {"score": raw_scores["compliance"]},
+                "total": {
+                    "score": total_score,
+                    "grade": raw_scores["grade"],
+                    "status": status
+                }
             }
-        }
-        st.session_state.audit_results = {"results": results, "scores": scores}
-    st.success("✅ Audit Complete!")
+            st.session_state.audit_results = {"results": results, "scores": scores}
+            st.success("✅ Audit Complete!")
+        except Exception as e:
+            st.error(f"Audit failed: {e}")
 
 if st.session_state.audit_results:
     results = st.session_state.audit_results["results"]
@@ -294,7 +330,7 @@ if st.session_state.audit_results:
                     st.session_state.explanation_text = explanation
                 except Exception as e:
                     st.error(f"Couldn't generate explanation: {e}")
-        if "explanation_text" in st.session_state:
+        if st.session_state.explanation_text:
             st.markdown("---")
             st.markdown(st.session_state.explanation_text)
 
@@ -302,32 +338,38 @@ if st.session_state.audit_results:
         st.subheader("Download Full PDF Report")
         if st.button("📄 Generate PDF Report"):
             with st.spinner("Generating PDF..."):
-                report_agent = ReportAgent()
-                pdf_path = report_agent.generate_pdf(
-                    scores=scores,
-                    bias_results=results["bias_results"],
-                    compliance_results=results["compliance_results"],
-                    model_accuracy=79.5,
-                    domain=domain,
-                    explanation=st.session_state.get("explanation_text", None)
-                )
-                with open(pdf_path, "rb") as f:
-                    st.download_button(
-                        "⬇️ Download PDF Report", f,
-                        file_name="XAI_Audit_Report.pdf",
-                        mime="application/pdf"
+                try:
+                    report_agent = ReportAgent()
+                    pdf_path = report_agent.generate_pdf(
+                        scores=scores,
+                        bias_results=results["bias_results"],
+                        compliance_results=results["compliance_results"],
+                        model_accuracy=79.5,
+                        domain=domain,
+                        explanation=st.session_state.get("explanation_text", None)
                     )
-            st.success("✅ Report generated!")
+                    with open(pdf_path, "rb") as f:
+                        st.download_button(
+                            "⬇️ Download PDF Report", f,
+                            file_name="XAI_Audit_Report.pdf",
+                            mime="application/pdf"
+                        )
+                    st.success("✅ Report generated!")
+                except Exception as e:
+                    st.error(f"PDF generation failed: {e}")
 else:
     st.info("👆 Click 'RUN FULL AUDIT' to begin the analysis")
 
-# ==================== CSV UPLOAD + CHATBOT SECTION ====================
+
+# ════════════════════════════════════════════════════════════════
+# SECTION 2: CSV UPLOAD + CHATBOT
+# ════════════════════════════════════════════════════════════════
 st.markdown("---")
 st.header("🔬 Upload Your Own Data + AI Assistant")
 
 left_col, right_col = st.columns([1, 1])
 
-# ---- CSV UPLOAD ----
+# ── CSV Upload ──────────────────────────────────────────────────
 with left_col:
     st.subheader("📁 Bias Check on Your CSV")
     st.caption("Upload any dataset to check it for demographic bias")
@@ -403,6 +445,7 @@ with left_col:
                             "protected": protected_cols,
                             "results": bias_results_csv
                         }
+                        st.success("✅ Bias check complete!")
 
                     except Exception as e:
                         st.error(f"Bias check failed: {e}")
@@ -416,7 +459,8 @@ with left_col:
         st.dataframe(results_df, use_container_width=True)
         st.info("💡 Ask the chatbot on the right to explain what these numbers mean!")
 
-# ---- CHATBOT ----
+
+# ── Chatbot ─────────────────────────────────────────────────────
 with right_col:
     st.subheader("💬 AI Assistant")
     st.caption("Ask anything — I know your audit results and can explain everything")
@@ -426,19 +470,19 @@ with right_col:
         for msg in st.session_state.chat_history:
             if msg["role"] == "user":
                 st.markdown(
-                    f'<div class="chat-user">👤 <b>You:</b> {msg["content"]}</div>',
+                    f\'\'\'<div class="chat-user">👤 <b>You:</b> {msg["content"]}</div>\'\'\',
                     unsafe_allow_html=True
                 )
             else:
                 st.markdown(
-                    f'<div class="chat-ai">🤖 <b>AI:</b> {msg["content"]}</div>',
+                    f\'\'\'<div class="chat-ai">🤖 <b>AI:</b> {msg["content"]}</div>\'\'\',
                     unsafe_allow_html=True
                 )
     else:
         st.markdown(
-            '<div class="chat-ai">🤖 <b>AI:</b> Hi! I\'m your Responsible AI advisor. '
-            'Run the audit above, upload your CSV, or just ask me anything about '
-            'AI bias, GDPR compliance, or the EU AI Act. What would you like to know?</div>',
+            \'\'\'<div class="chat-ai">🤖 <b>AI:</b> Hi! I\'m your Responsible AI advisor. 
+            Run the audit above, upload your CSV, or just ask me anything about 
+            AI bias, GDPR compliance, or the EU AI Act. What would you like to know?</div>\'\'\',
             unsafe_allow_html=True
         )
 
@@ -493,7 +537,6 @@ with right_col:
             try:
                 context = build_chat_context()
                 messages = [{"role": "system", "content": context}]
-                # Include last 6 messages for context
                 for msg in st.session_state.chat_history[-6:]:
                     messages.append({
                         "role": "user" if msg["role"] == "user" else "assistant",
@@ -502,7 +545,7 @@ with right_col:
                 reply = call_llm(messages)
             except Exception as e:
                 reply = (
-                    f"I couldn't connect to the AI right now ({str(e)[:80]}). "
+                    f"I couldn\'t connect to the AI right now ({str(e)[:80]}). "
                     "However, I can still help — your audit results are loaded and "
                     "I have context about your findings. Try again in a moment!"
                 )
@@ -512,7 +555,11 @@ with right_col:
             "content": reply
         })
         st.rerun()
-# ==================== DOCUMENT ANALYZER SECTION ====================
+
+
+# ════════════════════════════════════════════════════════════════
+# SECTION 3: DOCUMENT ANALYZER
+# ════════════════════════════════════════════════════════════════
 st.markdown("---")
 st.header("📄 Document Analyzer")
 st.caption("Upload any PDF or Word document — the AI will analyze it for bias, compliance issues, and legal red flags")
@@ -528,24 +575,23 @@ with doc_col1:
     )
 
     if doc_file:
-        # Extract text based on file type
         doc_text = ""
         try:
             if doc_file.name.endswith(".pdf"):
                 import PyPDF2
                 reader = PyPDF2.PdfReader(doc_file)
                 for page in reader.pages:
-                    doc_text += page.extract_text() + "\n"
+                    doc_text += page.extract_text() + "\\n"
 
             elif doc_file.name.endswith(".docx"):
                 import docx
-                import tempfile
                 with tempfile.NamedTemporaryFile(delete=False, suffix=".docx") as tmp:
                     tmp.write(doc_file.read())
                     tmp_path = tmp.name
                 doc_obj = docx.Document(tmp_path)
                 for para in doc_obj.paragraphs:
-                    doc_text += para.text + "\n"
+                    doc_text += para.text + "\\n"
+                os.unlink(tmp_path)
 
             elif doc_file.name.endswith(".txt"):
                 doc_text = doc_file.read().decode("utf-8", errors="ignore")
@@ -555,7 +601,6 @@ with doc_col1:
                 st.session_state.doc_text = doc_text
                 st.session_state.doc_name = doc_file.name
 
-                # Show preview
                 with st.expander("Preview document text"):
                     st.text(doc_text[:1000] + "..." if len(doc_text) > 1000 else doc_text)
             else:
@@ -564,7 +609,7 @@ with doc_col1:
         except Exception as e:
             st.error(f"Failed to read document: {e}")
 
-    if "doc_text" in st.session_state and st.session_state.doc_text:
+    if st.session_state.doc_text:
         st.markdown("---")
 
         analysis_type = st.selectbox(
@@ -582,10 +627,9 @@ with doc_col1:
         if st.button("🔍 Analyze Document", type="primary"):
             with st.spinner("AI is reading and analyzing your document..."):
                 try:
-                    # Truncate if too long
                     text_for_analysis = st.session_state.doc_text[:8000]
                     if len(st.session_state.doc_text) > 8000:
-                        text_for_analysis += "\n[Document truncated for analysis]"
+                        text_for_analysis += "\\n[Document truncated for analysis]"
 
                     prompts = {
                         "Full Compliance & Bias Analysis": f"""Analyze this document for ALL of the following and provide a detailed structured report:
@@ -662,12 +706,11 @@ Document: {text_for_analysis}"""
                         }
                     ]
 
-                    analysis_result = call_llm(messages)
+                    analysis_result = call_llm(messages, max_tokens=1500)
                     st.session_state.doc_analysis = analysis_result
                     st.session_state.doc_analysis_type = analysis_type
-
-                    # Add to chat context
-                    st.session_state.doc_context = f"The user uploaded '{st.session_state.doc_name}' and got a {analysis_type}. Result: {analysis_result[:500]}..."
+                    st.session_state.doc_context = f"The user uploaded \'{st.session_state.doc_name}\' and got a {analysis_type}. Result: {analysis_result[:500]}..."
+                    st.success("✅ Analysis complete!")
 
                 except Exception as e:
                     st.error(f"Analysis failed: {e}")
@@ -675,7 +718,7 @@ Document: {text_for_analysis}"""
 with doc_col2:
     st.subheader("Analysis Results")
 
-    if "doc_analysis" in st.session_state:
+    if st.session_state.doc_analysis:
         st.markdown(f"**{st.session_state.doc_analysis_type}**")
         st.markdown("---")
         st.markdown(st.session_state.doc_analysis)
@@ -683,7 +726,6 @@ with doc_col2:
         st.markdown("---")
         st.info("💬 Ask the AI Assistant above any follow-up questions about this document!")
 
-        # Download analysis as text
         st.download_button(
             "⬇️ Download Analysis",
             st.session_state.doc_analysis,
@@ -692,7 +734,15 @@ with doc_col2:
         )
     else:
         st.markdown(
-            '<div class="chat-ai">🤖 Upload a document on the left and click '
-            '"Analyze Document" to get a detailed compliance and bias analysis.</div>',
+            \'\'\'<div class="chat-ai">🤖 Upload a document on the left and click 
+            "Analyze Document" to get a detailed compliance and bias analysis.</div>\'\'\',
             unsafe_allow_html=True
         )
+'''
+
+# Save the file
+with open('/mnt/agents/output/app.py', 'w', encoding='utf-8') as f:
+    f.write(app_py_code)
+
+print("✅ app.py saved successfully!")
+print(f"File size: {len(app_py_code)} characters")
