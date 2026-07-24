@@ -1,8 +1,3 @@
-# Let me create a completely clean app.py with NO triple-quote issues
-# I'll use proper string escaping
-
-app_py_clean = r # XAI Agent — Responsible AI Audit Platform
-# Production-ready Streamlit app with Chatbot, CSV Scanner, and Document Analyzer
 
 import streamlit as st
 import pandas as pd
