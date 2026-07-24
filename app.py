@@ -1,5 +1,7 @@
+# Let me create a completely clean app.py with NO triple-quote issues
+# I'll use proper string escaping
 
-app_py_code = '''# XAI Agent — Responsible AI Audit Platform
+app_py_clean = r # XAI Agent — Responsible AI Audit Platform
 # Production-ready Streamlit app with Chatbot, CSV Scanner, and Document Analyzer
 
 import streamlit as st
@@ -10,13 +12,13 @@ import json
 import tempfile
 from dotenv import load_dotenv
 
-# ── Lock working directory ──────────────────────────────────────
+# Lock working directory
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 os.chdir(BASE_DIR)
 sys.path.append(BASE_DIR)
 load_dotenv()
 
-# ── Imports ─────────────────────────────────────────────────────
+# Imports
 try:
     from orchestrator.orchestrator_agent import OrchestratorAgent
     from agents.report_agent import ReportAgent
@@ -25,14 +27,14 @@ except ImportError as e:
     st.error(f"Backend import failed: {e}")
     st.stop()
 
-# ── Page Config ─────────────────────────────────────────────────
+# Page Config
 st.set_page_config(
     page_title="XAI Agent - Responsible AI Audit",
     page_icon="🤖",
     layout="wide"
 )
 
-# ── Custom CSS ──────────────────────────────────────────────────
+# Custom CSS
 st.markdown("""
 <style>
     .stApp { background-color: #0f0f1a; }
@@ -56,12 +58,12 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# ── Title ───────────────────────────────────────────────────────
+# Title
 st.title("🤖 XAI Agent — Responsible AI Audit Platform")
 st.markdown("### Built by Rithvik | SHAP + LIME + Fairness + GDPR Compliance")
 st.markdown("---")
 
-# ── Sidebar ─────────────────────────────────────────────────────
+# Sidebar
 with st.sidebar:
     st.header("⚙️ Configuration")
     domain = st.selectbox(
@@ -81,7 +83,7 @@ with st.sidebar:
     st.markdown("2. Upload your own CSV for bias checking")
     st.markdown("3. Ask the chatbot anything about your results")
 
-# ── Session State ───────────────────────────────────────────────
+# Session State
 def init_session():
     defaults = {
         "audit_results": None,
@@ -101,7 +103,7 @@ def init_session():
 
 init_session()
 
-# ── Data Loaders ────────────────────────────────────────────────
+# Data Loaders
 @st.cache_data
 def load_test_data():
     return pd.read_csv("data/X_test.csv"), pd.read_csv("data/y_test.csv").squeeze()
@@ -118,7 +120,7 @@ def load_orchestrator():
     )
     return orch
 
-# ── LLM Caller ──────────────────────────────────────────────────
+# LLM Caller
 @st.cache_resource
 def get_llm_client():
     hf_token = os.getenv("HF_TOKEN")
@@ -157,7 +159,7 @@ def call_llm(messages, max_tokens=500):
     return response.choices[0].message.content.strip()
 
 
-# ── Chat Context Builder ────────────────────────────────────────
+# Chat Context Builder
 def build_chat_context():
     ctx = (
         "You are an expert Responsible AI advisor embedded in the XAI Agent platform. "
@@ -171,7 +173,7 @@ def build_chat_context():
         scores = st.session_state.audit_results["scores"]
         results = st.session_state.audit_results["results"]
         ctx += (
-            f"\\n\\nCURRENT AUDIT CONTEXT: The user just ran a full Responsible AI audit. "
+            f"\n\nCURRENT AUDIT CONTEXT: The user just ran a full Responsible AI audit. "
             f"Overall Score: {scores['total']['score']}/100, "
             f"Grade: {scores['total']['grade']}, "
             f"Status: {scores['total']['status']}. "
@@ -190,21 +192,21 @@ def build_chat_context():
     if st.session_state.csv_summary:
         s = st.session_state.csv_summary
         ctx += (
-            f"\\n\\nUSER CSV CONTEXT: The user uploaded a dataset with {s['rows']} rows "
+            f"\n\nUSER CSV CONTEXT: The user uploaded a dataset with {s['rows']} rows "
             f"and {s['cols']} columns. Target column: '{s['target']}'. "
             f"Protected columns checked: {', '.join(s['protected'])}. "
             f"Bias results: {json.dumps(s['results'])}. "
         )
     
     if st.session_state.doc_context:
-        ctx += f"\\n\\nDOCUMENT CONTEXT: {st.session_state.doc_context}"
+        ctx += f"\n\nDOCUMENT CONTEXT: {st.session_state.doc_context}"
     
     return ctx
 
 
-# ════════════════════════════════════════════════════════════════
+# ============================================================
 # SECTION 1: MAIN AUDIT
-# ════════════════════════════════════════════════════════════════
+# ============================================================
 
 col1, col2, col3 = st.columns([1, 1, 1])
 with col2:
@@ -361,15 +363,15 @@ else:
     st.info("👆 Click 'RUN FULL AUDIT' to begin the analysis")
 
 
-# ════════════════════════════════════════════════════════════════
+# ============================================================
 # SECTION 2: CSV UPLOAD + CHATBOT
-# ════════════════════════════════════════════════════════════════
+# ============================================================
 st.markdown("---")
 st.header("🔬 Upload Your Own Data + AI Assistant")
 
 left_col, right_col = st.columns([1, 1])
 
-# ── CSV Upload ──────────────────────────────────────────────────
+# CSV Upload
 with left_col:
     st.subheader("📁 Bias Check on Your CSV")
     st.caption("Upload any dataset to check it for demographic bias")
@@ -460,7 +462,7 @@ with left_col:
         st.info("💡 Ask the chatbot on the right to explain what these numbers mean!")
 
 
-# ── Chatbot ─────────────────────────────────────────────────────
+# Chatbot
 with right_col:
     st.subheader("💬 AI Assistant")
     st.caption("Ask anything — I know your audit results and can explain everything")
@@ -470,19 +472,22 @@ with right_col:
         for msg in st.session_state.chat_history:
             if msg["role"] == "user":
                 st.markdown(
-                    f\'\'\'<div class="chat-user">👤 <b>You:</b> {msg["content"]}</div>\'\'\',
+                    '<div class="chat-user">👤 <b>You:</b> ' + msg["content"] + '</div>',
                     unsafe_allow_html=True
                 )
             else:
                 st.markdown(
-                    f\'\'\'<div class="chat-ai">🤖 <b>AI:</b> {msg["content"]}</div>\'\'\',
+                    '<div class="chat-ai">🤖 <b>AI:</b> ' + msg["content"] + '</div>',
                     unsafe_allow_html=True
                 )
     else:
+        welcome_msg = (
+            "Hi! I'm your Responsible AI advisor. "
+            "Run the audit above, upload your CSV, or just ask me anything about "
+            "AI bias, GDPR compliance, or the EU AI Act. What would you like to know?"
+        )
         st.markdown(
-            \'\'\'<div class="chat-ai">🤖 <b>AI:</b> Hi! I\'m your Responsible AI advisor. 
-            Run the audit above, upload your CSV, or just ask me anything about 
-            AI bias, GDPR compliance, or the EU AI Act. What would you like to know?</div>\'\'\',
+            '<div class="chat-ai">🤖 <b>AI:</b> ' + welcome_msg + '</div>',
             unsafe_allow_html=True
         )
 
@@ -545,7 +550,7 @@ with right_col:
                 reply = call_llm(messages)
             except Exception as e:
                 reply = (
-                    f"I couldn\'t connect to the AI right now ({str(e)[:80]}). "
+                    f"I couldn't connect to the AI right now ({str(e)[:80]}). "
                     "However, I can still help — your audit results are loaded and "
                     "I have context about your findings. Try again in a moment!"
                 )
@@ -557,9 +562,9 @@ with right_col:
         st.rerun()
 
 
-# ════════════════════════════════════════════════════════════════
+# ============================================================
 # SECTION 3: DOCUMENT ANALYZER
-# ════════════════════════════════════════════════════════════════
+# ============================================================
 st.markdown("---")
 st.header("📄 Document Analyzer")
 st.caption("Upload any PDF or Word document — the AI will analyze it for bias, compliance issues, and legal red flags")
@@ -581,7 +586,7 @@ with doc_col1:
                 import PyPDF2
                 reader = PyPDF2.PdfReader(doc_file)
                 for page in reader.pages:
-                    doc_text += page.extract_text() + "\\n"
+                    doc_text += page.extract_text() + "\n"
 
             elif doc_file.name.endswith(".docx"):
                 import docx
@@ -590,7 +595,7 @@ with doc_col1:
                     tmp_path = tmp.name
                 doc_obj = docx.Document(tmp_path)
                 for para in doc_obj.paragraphs:
-                    doc_text += para.text + "\\n"
+                    doc_text += para.text + "\n"
                 os.unlink(tmp_path)
 
             elif doc_file.name.endswith(".txt"):
@@ -629,70 +634,20 @@ with doc_col1:
                 try:
                     text_for_analysis = st.session_state.doc_text[:8000]
                     if len(st.session_state.doc_text) > 8000:
-                        text_for_analysis += "\\n[Document truncated for analysis]"
+                        text_for_analysis += "\n[Document truncated for analysis]"
 
                     prompts = {
-                        "Full Compliance & Bias Analysis": f"""Analyze this document for ALL of the following and provide a detailed structured report:
+                        "Full Compliance & Bias Analysis": "Analyze this document for ALL of the following and provide a detailed structured report:\n\n1. GDPR COMPLIANCE: Check for mentions of data processing, consent, right to explanation, data minimization. Flag any violations or missing requirements.\n2. EU AI ACT RISK: Identify what type of AI system this describes and classify its risk tier (Unacceptable/High/Limited/Minimal).\n3. BIAS & FAIRNESS: Look for any language that could indicate demographic bias, unfair treatment, or discrimination against protected groups.\n4. LEGAL RED FLAGS: Identify any statements that could create legal liability.\n5. RECOMMENDATIONS: Give 3-5 specific actions to improve compliance.\n\nDocument: " + text_for_analysis + "\n\nProvide your analysis in clear sections with specific quotes from the document where relevant.",
 
-1. GDPR COMPLIANCE: Check for mentions of data processing, consent, right to explanation, data minimization. Flag any violations or missing requirements.
-2. EU AI ACT RISK: Identify what type of AI system this describes and classify its risk tier (Unacceptable/High/Limited/Minimal).
-3. BIAS & FAIRNESS: Look for any language that could indicate demographic bias, unfair treatment, or discrimination against protected groups.
-4. LEGAL RED FLAGS: Identify any statements that could create legal liability.
-5. RECOMMENDATIONS: Give 3-5 specific actions to improve compliance.
+                        "GDPR Compliance Check": "You are a GDPR compliance expert. Analyze this document and check:\n- Article 5: Data minimization and purpose limitation\n- Article 13/14: Transparency and information obligations  \n- Article 22: Automated decision-making rights\n- Article 25: Privacy by design\n- Article 35: Data Protection Impact Assessment requirements\n\nFor each article, state: COMPLIANT / AT RISK / NON-COMPLIANT with specific reasoning.\n\nDocument: " + text_for_analysis,
 
-Document: {text_for_analysis}
+                        "EU AI Act Risk Assessment": "You are an EU AI Act expert. Analyze this document and:\n1. Identify what AI system or use case is described\n2. Classify the risk tier: Unacceptable / High / Limited / Minimal\n3. List the specific obligations that apply\n4. Identify any compliance gaps\n5. Give a deployment recommendation\n\nDocument: " + text_for_analysis,
 
-Provide your analysis in clear sections with specific quotes from the document where relevant.""",
+                        "Bias & Fairness Language Review": "You are a fairness and bias expert. Analyze this document for:\n1. Any language that discriminates against protected groups (gender, race, age, religion, disability)\n2. Proxy variables that could indirectly encode bias\n3. Missing fairness considerations\n4. Recommendations to make the document more equitable\n\nBe specific — quote exact phrases that are problematic.\n\nDocument: " + text_for_analysis,
 
-                        "GDPR Compliance Check": f"""You are a GDPR compliance expert. Analyze this document and check:
-- Article 5: Data minimization and purpose limitation
-- Article 13/14: Transparency and information obligations  
-- Article 22: Automated decision-making rights
-- Article 25: Privacy by design
-- Article 35: Data Protection Impact Assessment requirements
+                        "Legal Red Flags": "You are a legal risk analyst. Review this document and identify:\n1. Statements that could create legal liability\n2. Missing required disclosures\n3. Contradictions or ambiguities that could be exploited\n4. Regulatory violations\n5. Risk severity for each finding (HIGH/MEDIUM/LOW)\n\nDocument: " + text_for_analysis,
 
-For each article, state: COMPLIANT / AT RISK / NON-COMPLIANT with specific reasoning.
-
-Document: {text_for_analysis}""",
-
-                        "EU AI Act Risk Assessment": f"""You are an EU AI Act expert. Analyze this document and:
-1. Identify what AI system or use case is described
-2. Classify the risk tier: Unacceptable / High / Limited / Minimal
-3. List the specific obligations that apply
-4. Identify any compliance gaps
-5. Give a deployment recommendation
-
-Document: {text_for_analysis}""",
-
-                        "Bias & Fairness Language Review": f"""You are a fairness and bias expert. Analyze this document for:
-1. Any language that discriminates against protected groups (gender, race, age, religion, disability)
-2. Proxy variables that could indirectly encode bias
-3. Missing fairness considerations
-4. Recommendations to make the document more equitable
-
-Be specific — quote exact phrases that are problematic.
-
-Document: {text_for_analysis}""",
-
-                        "Legal Red Flags": f"""You are a legal risk analyst. Review this document and identify:
-1. Statements that could create legal liability
-2. Missing required disclosures
-3. Contradictions or ambiguities that could be exploited
-4. Regulatory violations
-5. Risk severity for each finding (HIGH/MEDIUM/LOW)
-
-Document: {text_for_analysis}""",
-
-                        "Executive Summary": f"""Create a professional executive summary of this document covering:
-1. What this document is about (2-3 sentences)
-2. Key AI/data practices described
-3. Main compliance strengths
-4. Main compliance risks
-5. Overall risk rating (HIGH/MEDIUM/LOW) with justification
-
-Keep it concise and suitable for a non-technical executive audience.
-
-Document: {text_for_analysis}"""
+                        "Executive Summary": "Create a professional executive summary of this document covering:\n1. What this document is about (2-3 sentences)\n2. Key AI/data practices described\n3. Main compliance strengths\n4. Main compliance risks\n5. Overall risk rating (HIGH/MEDIUM/LOW) with justification\n\nKeep it concise and suitable for a non-technical executive audience.\n\nDocument: " + text_for_analysis
                     }
 
                     messages = [
@@ -709,7 +664,7 @@ Document: {text_for_analysis}"""
                     analysis_result = call_llm(messages, max_tokens=1500)
                     st.session_state.doc_analysis = analysis_result
                     st.session_state.doc_analysis_type = analysis_type
-                    st.session_state.doc_context = f"The user uploaded \'{st.session_state.doc_name}\' and got a {analysis_type}. Result: {analysis_result[:500]}..."
+                    st.session_state.doc_context = f"The user uploaded '{st.session_state.doc_name}' and got a {analysis_type}. Result: {analysis_result[:500]}..."
                     st.success("✅ Analysis complete!")
 
                 except Exception as e:
@@ -733,16 +688,13 @@ with doc_col2:
             mime="text/plain"
         )
     else:
+        placeholder_msg = (
+            "Upload a document on the left and click "
+            "Analyze Document to get a detailed compliance and bias analysis."
+        )
         st.markdown(
-            \'\'\'<div class="chat-ai">🤖 Upload a document on the left and click 
-            "Analyze Document" to get a detailed compliance and bias analysis.</div>\'\'\',
+            '<div class="chat-ai">🤖 ' + placeholder_msg + '</div>',
             unsafe_allow_html=True
         )
-'''
 
-# Save the file
-with open('/mnt/agents/output/app.py', 'w', encoding='utf-8') as f:
-    f.write(app_py_code)
 
-print("✅ app.py saved successfully!")
-print(f"File size: {len(app_py_code)} characters")
